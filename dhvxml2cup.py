@@ -11,9 +11,9 @@ def printDetail(detail,file, prefix=None) :
     if detailString != 'None' :
         if detailString != '' :
             if prefix :
-                prefixString = prefix.decode('utf-8')
+                prefixString = prefix
                 detailString = prefixString+detailString
-            file.write(detailString.encode('utf-8'))
+            file.write(detailString)
             file.write('\n')
             return
 
@@ -29,9 +29,9 @@ args = parser.parse_args()
 tree = ET.parse(args.xmlfile)
 root = tree.getroot()
 # open the output .cup file (already existing files will be overwritten!)
-cupFile = open(args.output+'.cup','w')
+cupFile = open(args.output+'.cup','w', encoding='utf-8')
 if args.details :
-  txtFile = open(args.output+'.txt','w')
+  txtFile = open(args.output+'.txt','w', encoding='utf-8')
 # iterate over all flying sites in the xml file
 for flyingSite in root.iter('FlyingSite') :
     # collect informations that are common to all locations at this flying site
@@ -80,15 +80,15 @@ for flyingSite in root.iter('FlyingSite') :
            lonString = lonString+'W'
         # prepare the line that will be written to the .cup file for this location and do the writing
         locationString = '"%s","%i",%s,%s,%s,%.1fm,4,,,,"%s"' % (locationName,locationID,locationCountry,latString,lonString,altitude,locationName)
-        cupFile.write(locationString.encode('utf-8')) # encoding necessary to deal with mutated vowels
+        cupFile.write(locationString) # encoding necessary to deal with mutated vowels
         cupFile.write('\n')
 
         # if choosen by the user, write available detailed information of the site to the .txt file 
         if args.details :
             titleString = '[%s]' % locationName
-            txtFile.write(titleString.encode('utf-8'))
+            txtFile.write(titleString)
             txtFile.write('\n\n')
-            txtFile.write(siteType.encode('utf-8'))
+            txtFile.write(siteType)
             txtFile.write('\n\n')
             if locationType in [1, 3] : # towing site or take-off
                 printDetail(directions,txtFile,'Startrichtung: ')
@@ -100,8 +100,8 @@ for flyingSite in root.iter('FlyingSite') :
             printDetail(maxHeight,txtFile,'Maximale Höhendifferrenz: ')
             printDetail(suitability,txtFile,'Eignung: ')
             if guestRule :
-                prefix = 'Gästeregelung beachten!'.decode('utf-8')
-                txtFile.write(prefix.encode('utf-8'))
+                prefix = 'Gästeregelung beachten!'
+                txtFile.write(prefix)
                 txtFile.write('\n')
                 printDetail(guestRules,txtFile)
             txtFile.write('\n')
