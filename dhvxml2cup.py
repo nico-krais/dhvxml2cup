@@ -2,23 +2,21 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import xml.etree.ElementTree as ET
+from xml.etree import ElementTree
 from typing import Tuple
 
 
-def printDetail(detail, file, prefix=None):
-    """Checks if a specified detail is set. If it is, converts the detail to the correct encoding and prints it to file.
-    Optionally specify a prefix for the detail.
+def print_detail(detail, file, prefix=None):
+    """If the given detail is set (is not None), prints the detail and the given prefix (if any) to the
+    given file.
     """
-    detailString = '%s' % detail
-    if detailString != 'None':
-        if detailString != '':
-            if prefix:
-                prefixString = prefix
-                detailString = prefixString + detailString
-            file.write(detailString)
-            file.write('\n')
-            return
+    if not detail:
+        return
+    detail_string = str(detail)
+    if prefix:
+        detail_string = prefix + detail_string
+    file.write(detail_string)
+    file.write('\n')
 
 
 def dd_to_ddm(dd: float) -> Tuple[int, float]:
@@ -57,7 +55,7 @@ def lon_dd_to_cup_ddm(lat: float) -> str:
     return '%03i%06.3f%s' % (abs(degrees), decimal_minutes, hemisphere)
 
 
-if __name__ == "__main__":
+def main():
     # define and parse arguments
     parser = argparse.ArgumentParser(description='Convert DHV XML flying site data to SeeYou file format (.cup)')
     parser.add_argument('-d', '--details', help='Create additional .txt file with flying site details', action='store_true')
@@ -67,82 +65,87 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # read the xml tree
-    tree = ET.parse(args.xmlfile)
+    tree = ElementTree.parse(args.xmlfile)
     root = tree.getroot()
+
     # open the output .cup file (already existing files will be overwritten!)
-    cupFile = open(args.output + '.cup', 'w', encoding='utf-8')
+    cup_file = open(args.output + '.cup', 'w', encoding='utf-8')
     if args.details:
-        txtFile = open(args.output + '.txt', 'w', encoding='utf-8')
+        txt_file = open(args.output + '.txt', 'w', encoding='utf-8')
     # iterate over all flying sites in the xml file
-    for flyingSite in root.iter('FlyingSite'):
+    for flying_site in root.iter('FlyingSite'):
         # collect information that are common to all locations at this flying site
-        siteRemarks = flyingSite.find('SiteRemarks').text
-        requirements = flyingSite.find('Requirements').text
-        siteType = flyingSite.find('SiteType').text
-        maxHeight = flyingSite.find('HeightDifferenceMax').text
+        site_remarks = flying_site.find('SiteRemarks').text
+        requirements = flying_site.find('Requirements').text
+        site_type = flying_site.find('SiteType').text
+        max_height = flying_site.find('HeightDifferenceMax').text
         # iterate over all locations at this flying site (might be only one)
-        for location in flyingSite.findall('Location'):
+        for location in flying_site.findall('Location'):
             # check if this location is suitable for paragliders
             paragliding = location.find('Paragliding').text == 'true'
             if not paragliding:
                 continue
             # collect information that are specific to this location
-            locationName = location.find('LocationName').text
-            locationID = int(location.find('LocationID').text)
+            location_name = location.find('LocationName').text
+            location_id = int(location.find('LocationID').text)
             coordinates = location.find('Coordinates').text.split(',')
             altitude = float(location.find('Altitude').text)
-            locationRemarks = location.find('LocationRemarks').text
-            locationCountry = location.find('LocationCountry').text
-            locationType = int(location.find('LocationType').text)  # 1: Starting point, 2: Landing point: 3: Towing point
+            location_remarks = location.find('LocationRemarks').text
+            location_country = location.find('LocationCountry').text
+            location_type = int(location.find('LocationType').text)  # 1: Take-off, 2: Landing: 3: Towing
             directions = location.find('DirectionsText').text
-            towingLength = location.find('TowingLength').text
-            towingHeight1 = location.find('TowingHeight1').text
-            towingHeight2 = location.find('TowingHeight2').text
+            towing_length = location.find('TowingLength').text
+            towing_height1 = location.find('TowingHeight1').text
+            towing_height2 = location.find('TowingHeight2').text
             suitability = location.find('SuitabilityPG').text
             if location.find('GuestRulesApply') is None:
-                guestRule = False
+                guest_rule = False
             else:
-                guestRule = location.find('GuestRulesApply').text == 'true'
-            if guestRule:
-                guestRules = location.find('GuestRules').text
+                guest_rule = location.find('GuestRulesApply').text == 'true'
+            if guest_rule:
+                guest_rules = location.find('GuestRules').text
 
             # convert the decimal degree representation of the coordinates to degree decimal minute
-            latString = lat_dd_to_cup_ddm(float(coordinates[1]))
-            lonString = lon_dd_to_cup_ddm(float(coordinates[0]))
+            lat_string = lat_dd_to_cup_ddm(float(coordinates[1]))
+            lon_string = lon_dd_to_cup_ddm(float(coordinates[0]))
             # prepare the line that will be written to the .cup file for this location and do the writing
-            locationString = '"%s","%i",%s,%s,%s,%.1fm,4,,,,"%s"' % (
-                locationName, locationID, locationCountry, latString, lonString, altitude, locationName)
-            cupFile.write(locationString)  # encoding necessary to deal with mutated vowels
-            cupFile.write('\n')
+            location_string = '"%s","%i",%s,%s,%s,%.1fm,4,,,,"%s"' % (
+                location_name, location_id, location_country, lat_string, lon_string, altitude, location_name)
+            cup_file.write(location_string)
+            cup_file.write('\n')
 
             # if chosen by the user, write available detailed information of the site to the .txt file
             if args.details:
-                titleString = '[%s]' % locationName
-                txtFile.write(titleString)
-                txtFile.write('\n\n')
-                txtFile.write(siteType)
-                txtFile.write('\n\n')
-                if locationType in [1, 3]:  # towing site or take-off
-                    printDetail(directions, txtFile, 'Startrichtung: ')
-                if locationType == 3:  # towing site
-                    printDetail(towingLength, txtFile, 'Schlepplänge: ')
-                    printDetail(towingHeight1, txtFile, 'Schlepphöhe: ')
-                    printDetail(towingHeight2, txtFile, 'Schlepphöhe: ')
-                printDetail(altitude, txtFile, 'Höhe: ')
-                printDetail(maxHeight, txtFile, 'Maximale Höhendifferrenz: ')
-                printDetail(suitability, txtFile, 'Eignung: ')
-                if guestRule:
+                title_string = '[%s]' % location_name
+                txt_file.write(title_string)
+                txt_file.write('\n\n')
+                txt_file.write(site_type)
+                txt_file.write('\n\n')
+                if location_type in [1, 3]:  # towing site or take-off
+                    print_detail(directions, txt_file, 'Startrichtung: ')
+                if location_type == 3:  # towing site
+                    print_detail(towing_length, txt_file, 'Schlepplänge: ')
+                    print_detail(towing_height1, txt_file, 'Schlepphöhe: ')
+                    print_detail(towing_height2, txt_file, 'Schlepphöhe: ')
+                print_detail(altitude, txt_file, 'Höhe: ')
+                print_detail(max_height, txt_file, 'Maximale Höhendifferrenz: ')
+                print_detail(suitability, txt_file, 'Eignung: ')
+                if guest_rule:
                     prefix = 'Gästeregelung beachten!'
-                    txtFile.write(prefix)
-                    txtFile.write('\n')
-                    printDetail(guestRules, txtFile)
-                txtFile.write('\n')
-                printDetail(siteRemarks, txtFile)
-                txtFile.write('\n')
-                printDetail(requirements, txtFile)
-                txtFile.write('\n')
-                printDetail(locationRemarks, txtFile)
+                    txt_file.write(prefix)
+                    txt_file.write('\n')
+                    print_detail(guest_rules, txt_file)
+                txt_file.write('\n')
+                print_detail(site_remarks, txt_file)
+                txt_file.write('\n')
+                print_detail(requirements, txt_file)
+                txt_file.write('\n')
+                print_detail(location_remarks, txt_file)
 
-    cupFile.close()
+    cup_file.close()
     if args.details:
-        txtFile.close()
+        txt_file.close()
+
+
+if __name__ == "__main__":
+    main()
